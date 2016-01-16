@@ -1,0 +1,2 @@
+# use root
+rmmod hello
