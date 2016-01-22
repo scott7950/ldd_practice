@@ -100,7 +100,7 @@ int init_module(void) {
     //your major device number, rather than choosing a number randomly from the ones
     //that are currently free. In other words, your drivers should almost certainly be using
     //alloc_chrdev_region rather than register_chrdev_region.
-    ret = alloc_chrdev_region(&dev_no, 0, 1, "arr_dev");
+    ret = alloc_chrdev_region(&dev_no, 0, 1, "file_op_driver");
     if(ret < 0) {
         printk("Major number allocation is failed\n");
         return ret;
@@ -129,7 +129,7 @@ void cleanup_module(void) {
     printk(KERN_INFO "Inside cleanup_module\n");
     cdev_del(arr_cdev);
     unregister_chrdev_region(dev_no, 1);
-    unregister_chrdev(Major, "arr_dev");
+    unregister_chrdev(Major, "file_op_driver");
 }
 
 MODULE_LICENSE("GPL");
