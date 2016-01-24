@@ -1,6 +1,6 @@
 #!/bin/bash
-module="driver"
-device="driver"
+module="copy_data_between_user_and_kernel"
+device="copy_data"
 mode="664"
 # invoke insmod with all arguments we got
 # and use a pathname, as newer modutils don't look in . by default
@@ -10,7 +10,7 @@ mode="664"
 #rm -f /dev/${device}[0-3]
 rm -f /dev/${device}0
 #major=$(awk "\\$2==\"$module\" {print \\$1}" /proc/devices)
-major=$(awk "\$2==\"$module\" {print \$1}" /proc/devices)
+major=$(awk "\$2==\"$device\" {print \$1}" /proc/devices)
 
 mknod /dev/${device}0 c $major 0
 #mknod /dev/${device}1 c $major 1

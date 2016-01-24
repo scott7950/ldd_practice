@@ -3,7 +3,10 @@
 #include <linux/semaphore.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+// copy_to_user copy_from_user
+#include <asm/uaccess.h>
 
+int fudge = 0;
 static int Major;
 dev_t dev_no;
 
@@ -26,25 +29,38 @@ struct device {
 struct cdev *arr_cdev;
 
 int open(struct inode *inode, struct file *filp) {
-    printk(KERN_INFO "Inside open \n");
+    if(down_interruptible(&char_arr.sem)) {
+        printk(KERN_INFO "open: could not hold the semaphore");
+        return -1;
+    }
+    printk(KERN_INFO "open: opening device \n");
     return 0;
 }
 
 int release(struct inode *inode, struct file *filp) {
-    printk(KERN_INFO "Inside close \n");
+    printk(KERN_INFO "release: closing device \n");
     return 0;
 }
 
 ssize_t read(struct file *f, char *b, size_t cnt, loff_t *o) {
-    printk(KERN_INFO "Inside read \n");
+    unsigned long ret;
+
+    if(fudge) {
+        printk(KERN_INFO "read: end of transmission\n");
+        fudge = 0;
+        return 0;
+    }
+    printk(KERN_INFO "read: user data to device, cnt=%d sz=%d\n", (int)cnt, (int)strlen(b));
+    ret = copy_to_user(b, char_arr.array, cnt);
+    fudge = 1;
     return 0;
 }
 
 ssize_t write(struct file *f, const char *b, size_t cnt, loff_t *o) {
-    char buffer[128];
-    cnt = (cnt > 64) ? 64 : cnt;
-    strncpy(buffer, b, cnt);
-    printk(KERN_INFO "Inside write, buffer=%s, size=%d\n", buffer, cnt);
+    unsigned long ret;
+
+    printk(KERN_INFO "write: device data to user, cnt=%d\n", (int)cnt);
+    ret = copy_from_user(char_arr.array, b, cnt);
     return cnt;
 }
 
@@ -86,13 +102,19 @@ struct file_operations fops = {
 
 int init_module(void) {
     int ret;
+    int i;
+
     printk("---------------------------------------\n");
+
+    for(i=0; i<100; i++) {
+        char_arr.array[i] = 0;
+    }
 
     // allocate a cdev structure
     arr_cdev = cdev_alloc();
     arr_cdev->ops = &fops;
     arr_cdev->owner = THIS_MODULE;
-    printk(KERN_INFO "Inside init module\n");
+    printk(KERN_INFO "init: starting driver\n");
 
     // allocate a major number dynamically
     // From ldd3:
@@ -100,7 +122,7 @@ int init_module(void) {
     //your major device number, rather than choosing a number randomly from the ones
     //that are currently free. In other words, your drivers should almost certainly be using
     //alloc_chrdev_region rather than register_chrdev_region.
-    ret = alloc_chrdev_region(&dev_no, 0, 1, "file_op_driver");
+    ret = alloc_chrdev_region(&dev_no, 0, 1, "copy_data");
     if(ret < 0) {
         printk("Major number allocation is failed\n");
         return ret;
@@ -129,7 +151,7 @@ void cleanup_module(void) {
     printk(KERN_INFO "Inside cleanup_module\n");
     cdev_del(arr_cdev);
     unregister_chrdev_region(dev_no, 1);
-    unregister_chrdev(Major, "file_op_driver");
+    unregister_chrdev(Major, "copy_data");
 }
 
 MODULE_LICENSE("GPL");
