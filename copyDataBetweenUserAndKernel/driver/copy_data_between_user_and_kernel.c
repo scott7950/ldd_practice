@@ -39,6 +39,7 @@ int open(struct inode *inode, struct file *filp) {
 
 int release(struct inode *inode, struct file *filp) {
     printk(KERN_INFO "release: closing device \n");
+    up(&char_arr.sem);
     return 0;
 }
 
@@ -51,7 +52,13 @@ ssize_t read(struct file *f, char *b, size_t cnt, loff_t *o) {
         return 0;
     }
     printk(KERN_INFO "read: user data to device, cnt=%d sz=%d\n", (int)cnt, (int)strlen(b));
-    ret = copy_to_user(b, char_arr.array, cnt);
+    printk(KERN_INFO "read: data in char_arr.array, %s\n", char_arr.array);
+    if(strlen(char_arr.array)-1 < cnt) {
+        ret = copy_to_user(b, char_arr.array, strlen(char_arr.array)-1);
+    } else {
+        ret = copy_to_user(b, char_arr.array, cnt);
+    }
+    printk(KERN_INFO "read: data copied to b, data=%s sz=%d\n", b, (int)strlen(b));
     fudge = 1;
     return 0;
 }
@@ -59,8 +66,9 @@ ssize_t read(struct file *f, char *b, size_t cnt, loff_t *o) {
 ssize_t write(struct file *f, const char *b, size_t cnt, loff_t *o) {
     unsigned long ret;
 
-    printk(KERN_INFO "write: device data to user, cnt=%d\n", (int)cnt);
+    printk(KERN_INFO "write: device data to user, cnt=%d, data=%s\n", (int)cnt, b);
     ret = copy_from_user(char_arr.array, b, cnt);
+    printk(KERN_INFO "write: data written to char_arr.array, %s\n", char_arr.array);
     return cnt;
 }
 
